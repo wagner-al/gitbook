@@ -1,0 +1,88 @@
+import { CustomizationRootLayout } from '@/components/RootLayout';
+import {
+    SiteLayoutClientContexts,
+    generateSiteLayoutMetadata,
+    generateSiteLayoutViewport,
+} from '@/components/SiteLayout';
+import type { VisitorAuthClaims } from '@/lib/adaptive';
+import type { GitBookSiteContext } from '@/lib/context';
+import { SiteInsightsTrademarkPlacement } from '@gitbook/api';
+import { SpaceLayoutServerContext } from '../SpaceLayout';
+import { Trademark } from '../TableOfContents/Trademark';
+import { NavigationLoader } from '../primitives/NavigationLoader';
+import { EmbeddableAIContextProvider } from './EmbeddableAIContextProvider';
+import { EmbeddableIframeAPI } from './EmbeddableIframeAPI';
+import { IfEmbeddableTrademark } from './EmbeddableTrademark';
+
+type EmbeddableRootLayoutProps = {
+    context: GitBookSiteContext;
+    withTracking: boolean;
+    visitorAuthClaims: VisitorAuthClaims;
+};
+
+/**
+ * Layout component for the embed routes.
+ */
+export async function EmbeddableRootLayout({
+    context,
+    withTracking,
+    visitorAuthClaims,
+    children,
+}: React.PropsWithChildren<EmbeddableRootLayoutProps>) {
+    return (
+        <CustomizationRootLayout context={context} htmlClassName="embed">
+            <SiteLayoutClientContexts
+                forcedTheme={
+                    context.customization.themes.toggeable
+                        ? undefined
+                        : context.customization.themes.default
+                }
+                defaultTheme={context.customization.themes.default}
+                externalLinksTarget={context.customization.externalLinks.target}
+                contextId={context.contextId}
+                proxyOrigin={context.site.proxy?.origin}
+            >
+                <EmbeddableAIContextProvider
+                    aiMode={context.customization.ai.mode}
+                    suggestions={context.customization.ai.suggestions}
+                    trademark={context.customization.trademark.enabled}
+                >
+                    <SpaceLayoutServerContext
+                        context={context}
+                        withTracking={withTracking}
+                        visitorAuthClaims={visitorAuthClaims}
+                        aiChatRenderMessageOptions={{
+                            withLinkPreviews: false,
+                            asEmbeddable: true,
+                        }}
+                    >
+                        <NavigationLoader />
+                        <div className="fixed inset-0 flex flex-col">
+                            {children}
+                            {context.customization.trademark.enabled ? (
+                                <IfEmbeddableTrademark>
+                                    <Trademark
+                                        className="rounded-none! border-x-0 border-t border-b-0 bg-tint-solid/1 depth-flat:bg-tint-solid/1 px-4 py-2.5 text-tint/8"
+                                        context={context}
+                                        placement={SiteInsightsTrademarkPlacement.Embed}
+                                    />
+                                </IfEmbeddableTrademark>
+                            ) : null}
+                        </div>
+                        <EmbeddableIframeAPI
+                            baseURL={context.linker.toPathInSite('~gitbook/embed/')}
+                        />
+                    </SpaceLayoutServerContext>
+                </EmbeddableAIContextProvider>
+            </SiteLayoutClientContexts>
+        </CustomizationRootLayout>
+    );
+}
+
+export async function generateEmbeddableViewport({ context }: { context: GitBookSiteContext }) {
+    return generateSiteLayoutViewport(context);
+}
+
+export async function generateEmbeddableMetadata({ context }: { context: GitBookSiteContext }) {
+    return generateSiteLayoutMetadata(context);
+}
